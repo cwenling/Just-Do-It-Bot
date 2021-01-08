@@ -19,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT, CHOOSE_EDIT_FIELDS, \
-    CHOOSE_DELETE_TASK, CONFIRM_DELETION = range(7)
+    CHOOSE_DELETE_TASK, CONFIRM_DELETION, MARK_TASK_DONE = range(8)
 
 choices_menu_keyboard = [['/list tasks', '/add tasks'],
                          ['/edit tasks', '/delete tasks'],
@@ -128,18 +128,30 @@ def delete_task_confirmation(update: Update, context: CallbackContext) -> int:
 
 
 def confirm_deletion(update: Update, context: CallbackContext) -> int:
+    # TODO get the task
     update.message.reply_text("You deleted this task.", reply_markup=continue_or_not_keyboard_markup)
     return CONTINUE_OR_NOT
 
 
 def abort_deletion(update: Update, context: CallbackContext) -> int:
+    # TODO get the task
     update.message.reply_text("You did not delete this task.", reply_markup=continue_or_not_keyboard_markup)
     return CONTINUE_OR_NOT
 
 
 def mark_done_tasks(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("I am marking done tasks now.")
-    return CHOICES_MENU
+    tasks_to_be_printed = get_tasks_in_string()
+    # keyboard = build_keyboard(tasks)
+    # TODO add keyboard of tasks here
+    update.message.reply_text(
+        "Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to mark done?")
+    return MARK_TASK_DONE
+
+
+def confirm_done(update: Update, context: CallbackContext) -> int:
+    # TODO get the task
+    update.message.reply_text("This task has been marked done!")
+    return CONTINUE_OR_NOT
 
 
 def help_message(update: Update, context: CallbackContext) -> int:
@@ -149,7 +161,7 @@ def help_message(update: Update, context: CallbackContext) -> int:
                               "/edit - Edit your tasks\n"
                               "/delete - Delete your tasks\n"
                               "/done - Mark done your tasks\n"
-                              "/cancel - Say bye bye to me!")
+                              "/exit - Say bye bye to me!")
     return CHOICES_MENU
 
 
@@ -202,6 +214,9 @@ def main() -> None:
             CONFIRM_DELETION: [
                 CommandHandler('yes', confirm_deletion),
                 CommandHandler('no', abort_deletion)
+            ],
+            MARK_TASK_DONE: [
+
             ],
             CONTINUE_OR_NOT: [
                 CommandHandler('continue', continue_using),
