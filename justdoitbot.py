@@ -1,5 +1,6 @@
 import json
 import logging
+import psycopg2
 
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -17,6 +18,16 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def get_connection():
+    connection = psycopg2.connect(user="postgres2",
+                                  password="botbotbot",
+                                  host="127.0.0.1",
+                                  port="5432",
+                                  database="botdb")
+    return connection
+
 
 CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT, CHOOSE_EDIT_FIELDS, \
     CHOOSE_DELETE_TASK, CONFIRM_DELETION, MARK_TASK_DONE = range(8)
@@ -40,6 +51,12 @@ def start(update: Update, context: CallbackContext) -> int:
     update.message.reply_text("Hello! Welcome to JustDueet bot!\n\n You can look at the keyboard for the list of "
                               "commands we offer! Alternatively, you can use /help!",
                               reply_markup=choices_menu_keyboard_markup)
+    context.user_data['userid'] = update.message.chat_id
+    # Fetch result
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("SELECT * from tasks")
+    print("Result ", cursor.fetchall())
     return CHOICES_MENU
 
 
@@ -68,6 +85,9 @@ def add_task_name(update: Update, context: CallbackContext) -> int:
     task_name = update.message.text
     update.message.reply_text("Noted! Your task name is " + task_name + "\n"
                                                                         "What about the deadline of the task?")
+    context.user_data['name'] = task_name
+    logger.info("Deadline name:")
+    logger.info(context.user_data)
     # TODO insert task name into db
 
     return ADD_TASK_DEADLINE
@@ -75,12 +95,32 @@ def add_task_name(update: Update, context: CallbackContext) -> int:
 
 def add_task_deadline(update: Update, context: CallbackContext) -> int:
     task_deadline = update.message.text
+    context.user_data['deadline'] = task_deadline
     # TODO get task name from db
-    task = "FULL TASK"
+    logger.info("Task:")
+    logger.info(context.user_data)
+    task = context.user_data['name'] + task_deadline
     update.message.reply_text("Okay! Your task's deadline is " + task_deadline + "\n"
                               + "This task has been added into your task list: " + task)
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    postgres_insert_query = """ INSERT INTO tasks (USERID, NAME, DEADLINE) VALUES (%s,%s,%s)"""
+    record_to_insert = (context.user_data['userid'], context.user_data['name'], context.user_data['deadline'])
+    cursor.execute(postgres_insert_query, record_to_insert)
+
+    connection.commit()
+    count = cursor.rowcount
+    print(count, "Record inserted successfully into mobile table")
+
     update.message.reply_text("Do you want to continue using JustDueet bot?",
                               reply_markup=continue_or_not_keyboard_markup)
+
+    # Fetch result
+    cursor.execute("SELECT * from tasks")
+    print("Result ", cursor.fetchall())
+
     return CONTINUE_OR_NOT
 
 
