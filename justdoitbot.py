@@ -1,5 +1,6 @@
 import logging
 import psycopg2
+import os
 
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -20,12 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 def get_connection():
-    connection = psycopg2.connect(user="postgres2",
-                                  password="botbotbot",
-                                  host="127.0.0.1",
-                                  port="5432",
-                                  database="botdb")
-    return connection
+    DATABASE_URL = os.environ['postgres://nuryqcnukhhtay:f898e8d7ad3c53f29763b0758498d07923068b506522eb80096577ca0f53d2c4@ec2-52-44-166-58.compute-1.amazonaws.com:5432/d3t932c9q69007']
+
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+
+    return conn
 
 
 CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT, CHOOSE_EDIT_FIELDS, \
