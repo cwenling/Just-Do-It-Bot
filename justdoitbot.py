@@ -51,7 +51,7 @@ def start(update: Update, context: CallbackContext) -> int:
     update.message.reply_text("Hello! Welcome to JustDueet bot!\n\n You can look at the keyboard for the list of "
                               "commands we offer! Alternatively, you can use /help!",
                               reply_markup=choices_menu_keyboard_markup)
-    context.user_data['userid'] = update.message.chat_id
+    context.user_data['userid'] = str(update.message.from_user.id)
     # Fetch result
     connection = get_connection()
     cursor = connection.cursor()
@@ -66,7 +66,7 @@ def list_tasks(update: Update, context: CallbackContext) -> int:
     return CHOICES_MENU
 
 
-def get_tasks_in_string(update: Update) -> str:
+def get_tasks(update: Update):
     connection = get_connection()
     cursor = connection.cursor()
     postgres_select_query = """select * from tasks where userid = %s"""
@@ -75,8 +75,25 @@ def get_tasks_in_string(update: Update) -> str:
     cursor.execute(postgres_select_query, (user_id,))
     tasks = cursor.fetchall()
 
+    return tasks
+
+
+def get_tasks_name(update: Update):
+    connection = get_connection()
+    cursor = connection.cursor()
+    postgres_select_query = """select name from tasks where userid = %s"""
+
+    user_id = str(update.message.from_user.id)
+    cursor.execute(postgres_select_query, (user_id,))
+    tasks_names = cursor.fetchall()
+
+    return tasks_names
+
+def get_tasks_in_string(update: Update) -> str:
+    tasks = get_tasks(update)
     result = ""
     i = 1
+
     for task in tasks:
         task_name = task[1]
         task_deadline = task[2]
@@ -87,15 +104,13 @@ def get_tasks_in_string(update: Update) -> str:
 
 
 def add_tasks(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("Okay so you want to add a task!\n"
-                              "What is the name of your task?")
+    update.message.reply_text("What is the name of the task?")
     return ADD_TASK_NAME
 
 
 def add_task_name(update: Update, context: CallbackContext) -> int:
     task_name = update.message.text
-    update.message.reply_text("Noted! Your task name is " + task_name + "\n"
-                                                                        "What about the deadline of the task?")
+    update.message.reply_text("When is it due?")
     context.user_data['name'] = task_name
     logger.info("Deadline name:")
     logger.info(context.user_data)
@@ -165,17 +180,33 @@ def edit_task_deadline(update: Update, context: CallbackContext) -> int:
 
 def delete_tasks(update: Update, context: CallbackContext) -> int:
     tasks_to_be_printed = get_tasks_in_string(update)
-    # keyboard = build_keyboard(tasks)
+    tasks = get_tasks_name(update)
+    keyboard = build_keyboard(tasks)
     # TODO add keyboard of tasks here
     update.message.reply_text(
-        "Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to delete?")
+        "Which task to delete?", reply_markup=keyboard)
     return CHOOSE_DELETE_TASK
 
+task_to_be_deleted = None
 
 def delete_task_confirmation(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("Are you sure you want to delete this task?",
-                              reply_markup=confirmation_deletion_keyboard_markup)
-    return CONFIRM_DELETION
+    task_name = update.message.text
+    is_inside = False
+    for task in get_tasks_name(update):
+        if task_name == str(task)[2:-3]:
+            is_inside = True
+            global task_to_be_deleted
+            task_to_be_deleted = task_name
+            break
+
+    if not is_inside:
+        update.message.reply_text("Task does not exist!")
+        return abort_deletion(update, context)
+    else:
+        #
+        update.message.reply_text("Are you sure you want to delete this task?",
+                                  reply_markup=confirmation_deletion_keyboard_markup)
+        return CONFIRM_DELETION
 
 
 def confirm_deletion(update: Update, context: CallbackContext) -> int:
@@ -186,7 +217,7 @@ def confirm_deletion(update: Update, context: CallbackContext) -> int:
 
 def abort_deletion(update: Update, context: CallbackContext) -> int:
     # TODO get the task
-    update.message.reply_text("You did not delete this task.", reply_markup=continue_or_not_keyboard_markup)
+    update.message.reply_text("Deletion aborted.", reply_markup=continue_or_not_keyboard_markup)
     return CONTINUE_OR_NOT
 
 
@@ -229,9 +260,10 @@ def cancel(update: Update, context: CallbackContext) -> int:
 
 
 def build_keyboard(items):
-    keyboard = [[item] for item in items]
+
+    keyboard = [[str(item)[2:-3]] for item in items]
     reply_markup = {"keyboard": keyboard, "one_time_keyboard": True}
-    return json.dumps(reply_markup)
+    return reply_markup
 
 
 def main() -> None:
@@ -260,7 +292,7 @@ def main() -> None:
                 CommandHandler('deadline', edit_task_deadline)
             ],
             CHOOSE_DELETE_TASK: [
-
+                MessageHandler(Filters.text, delete_task_confirmation),
             ],
             CONFIRM_DELETION: [
                 CommandHandler('yes', confirm_deletion),
