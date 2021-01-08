@@ -1,3 +1,4 @@
+import json
 import logging
 
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -17,14 +18,21 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT = range(4)
+CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT, CHOOSE_EDIT_FIELDS, \
+    CHOOSE_DELETE_TASK, CONFIRM_DELETION, MARK_TASK_DONE = range(8)
 
 choices_menu_keyboard = [['/list tasks', '/add tasks'],
                          ['/edit tasks', '/delete tasks'],
                          ['/done tasks', '/exit']]
 choices_menu_keyboard_markup = ReplyKeyboardMarkup(choices_menu_keyboard)
 
-continue_or_not_keyboard = [['/yes', '/no']]
+task_field_menu_keyboard = [['task /name', 'task /deadline']]
+task_field_menu_keyboard_markup = ReplyKeyboardMarkup(task_field_menu_keyboard)
+
+confirmation_deletion_keyboard = [['/yes', '/no']]
+confirmation_deletion_keyboard_markup = ReplyKeyboardMarkup(confirmation_deletion_keyboard)
+
+continue_or_not_keyboard = [['/continue', '/end']]
 continue_or_not_keyboard_markup = ReplyKeyboardMarkup(continue_or_not_keyboard)
 
 
@@ -36,10 +44,18 @@ def start(update: Update, context: CallbackContext) -> int:
 
 
 def list_tasks(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("Here are the list of tasks:")
-    # TODO getting tasks from db
-
+    tasks_to_be_printed = get_tasks_in_string()
+    update.message.reply_text("Here are the list of tasks:\n" + tasks_to_be_printed)
     return CHOICES_MENU
+
+
+def get_tasks_in_string() -> str:
+    # TODO getting tasks from db
+    # tasks =
+    tasks_to_be_printed = ""
+    # for task in tasks:
+    #     tasks_to_be_printed += task + "\n"
+    return tasks_to_be_printed
 
 
 def add_tasks(update: Update, context: CallbackContext) -> int:
@@ -51,7 +67,7 @@ def add_tasks(update: Update, context: CallbackContext) -> int:
 def add_task_name(update: Update, context: CallbackContext) -> int:
     task_name = update.message.text
     update.message.reply_text("Noted! Your task name is " + task_name + "\n"
-                              "What about the deadline of the task?")
+                                                                        "What about the deadline of the task?")
     # TODO insert task name into db
 
     return ADD_TASK_DEADLINE
@@ -69,18 +85,73 @@ def add_task_deadline(update: Update, context: CallbackContext) -> int:
 
 
 def edit_tasks(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("I am editing tasks now.")
-    return CHOICES_MENU
+    tasks_to_be_printed = get_tasks_in_string()
+    # keyboard = build_keyboard(tasks)
+    # TODO add keyboard of tasks here
+    update.message.reply_text("Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to edit?")
+    return CHOOSE_EDIT_FIELDS
+
+
+def choose_edit_fields(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("What would you like to edit? The task name or the task deadline?",
+                              task_field_menu_keyboard_markup)
+    return CHOOSE_EDIT_FIELDS
+
+
+def edit_task_name(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("What is the edited task name?", reply_markup=ReplyKeyboardRemove())
+    edited_name = update.message.text
+    # TODO update edited name in db
+    return CONTINUE_OR_NOT
+
+
+def edit_task_deadline(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("What is the edited task deadline?", reply_markup=ReplyKeyboardRemove())
+    edited_deadline = update.message.text
+    # TODO update edited deadline in db
+    return CONTINUE_OR_NOT
 
 
 def delete_tasks(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("I am deleting tasks now.")
-    return CHOICES_MENU
+    tasks_to_be_printed = get_tasks_in_string()
+    # keyboard = build_keyboard(tasks)
+    # TODO add keyboard of tasks here
+    update.message.reply_text(
+        "Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to delete?")
+    return CHOOSE_DELETE_TASK
+
+
+def delete_task_confirmation(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("Are you sure you want to delete this task?",
+                              reply_markup=confirmation_deletion_keyboard_markup)
+    return CONFIRM_DELETION
+
+
+def confirm_deletion(update: Update, context: CallbackContext) -> int:
+    # TODO get the task
+    update.message.reply_text("You deleted this task.", reply_markup=continue_or_not_keyboard_markup)
+    return CONTINUE_OR_NOT
+
+
+def abort_deletion(update: Update, context: CallbackContext) -> int:
+    # TODO get the task
+    update.message.reply_text("You did not delete this task.", reply_markup=continue_or_not_keyboard_markup)
+    return CONTINUE_OR_NOT
 
 
 def mark_done_tasks(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("I am marking done tasks now.")
-    return CHOICES_MENU
+    tasks_to_be_printed = get_tasks_in_string()
+    # keyboard = build_keyboard(tasks)
+    # TODO add keyboard of tasks here
+    update.message.reply_text(
+        "Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to mark done?")
+    return MARK_TASK_DONE
+
+
+def confirm_done(update: Update, context: CallbackContext) -> int:
+    # TODO get the task
+    update.message.reply_text("This task has been marked done!")
+    return CONTINUE_OR_NOT
 
 
 def help_message(update: Update, context: CallbackContext) -> int:
@@ -90,7 +161,7 @@ def help_message(update: Update, context: CallbackContext) -> int:
                               "/edit - Edit your tasks\n"
                               "/delete - Delete your tasks\n"
                               "/done - Mark done your tasks\n"
-                              "/cancel - Say bye bye to me!")
+                              "/exit - Say bye bye to me!")
     return CHOICES_MENU
 
 
@@ -106,6 +177,12 @@ def cancel(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
+def build_keyboard(items):
+    keyboard = [[item] for item in items]
+    reply_markup = {"keyboard": keyboard, "one_time_keyboard": True}
+    return json.dumps(reply_markup)
+
+
 def main() -> None:
     updater = Updater("1408983446:AAEjq7jNHRBGQ3CM4cf5pO6hWvPQMw_NRlY", use_context=True)
     dispatcher = updater.dispatcher
@@ -118,7 +195,8 @@ def main() -> None:
                 CommandHandler('add', add_tasks),
                 CommandHandler('edit', edit_tasks),
                 CommandHandler('delete', delete_tasks),
-                CommandHandler('done', mark_done_tasks)
+                CommandHandler('done', mark_done_tasks),
+                CommandHandler('exit', cancel)
             ],
             ADD_TASK_NAME: [
                 MessageHandler(Filters.text, add_task_name)
@@ -126,9 +204,23 @@ def main() -> None:
             ADD_TASK_DEADLINE: [
                 MessageHandler(Filters.text, add_task_deadline)
             ],
+            CHOOSE_EDIT_FIELDS: [
+                CommandHandler('name', edit_task_name),
+                CommandHandler('deadline', edit_task_deadline)
+            ],
+            CHOOSE_DELETE_TASK: [
+
+            ],
+            CONFIRM_DELETION: [
+                CommandHandler('yes', confirm_deletion),
+                CommandHandler('no', abort_deletion)
+            ],
+            MARK_TASK_DONE: [
+
+            ],
             CONTINUE_OR_NOT: [
-                CommandHandler('yes', continue_using),
-                CommandHandler('no', cancel)
+                CommandHandler('continue', continue_using),
+                CommandHandler('end', cancel)
             ]
 
         },
