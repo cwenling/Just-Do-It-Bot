@@ -1,4 +1,3 @@
-import json
 import logging
 import psycopg2
 
@@ -30,14 +29,14 @@ def get_connection():
 
 
 CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT, CHOOSE_EDIT_FIELDS, \
-    CHOOSE_DELETE_TASK, CONFIRM_DELETION, MARK_TASK_DONE = range(8)
+    CHOOSE_EDIT_TASK, EDIT_TASK_NAME, EDIT_TASK_DEADLINE, CHOOSE_DELETE_TASK, CONFIRM_DELETION = range(10)
 
 choices_menu_keyboard = [['/list tasks', '/add tasks'],
                          ['/edit tasks', '/delete tasks'],
-                         ['/done tasks', '/exit']]
+                         ['/exit']]
 choices_menu_keyboard_markup = ReplyKeyboardMarkup(choices_menu_keyboard)
 
-task_field_menu_keyboard = [['task /name', 'task /deadline']]
+task_field_menu_keyboard = [['/name', '/deadline']]
 task_field_menu_keyboard_markup = ReplyKeyboardMarkup(task_field_menu_keyboard)
 
 confirmation_deletion_keyboard = [['/yes', '/no']]
@@ -66,7 +65,7 @@ def list_tasks(update: Update, context: CallbackContext) -> int:
     return CHOICES_MENU
 
 
-def get_tasks(update: Update):
+def get_tasks_all(update: Update):
     connection = get_connection()
     cursor = connection.cursor()
     postgres_select_query = """select * from tasks where userid = %s"""
@@ -90,15 +89,27 @@ def get_tasks_name(update: Update):
     return tasks_names
 
 
+def get_tasks_name_deadline(update: Update):
+    connection = get_connection()
+    cursor = connection.cursor()
+    postgres_select_query = """select name, deadline from tasks where userid = %s"""
+
+    user_id = str(update.message.from_user.id)
+    cursor.execute(postgres_select_query, (user_id,))
+    tasks_names_deadlines = cursor.fetchall()
+
+    return tasks_names_deadlines
+
+
 def get_tasks_in_string(update: Update) -> str:
-    tasks = get_tasks(update)
+    tasks = get_tasks_all(update)
     result = ""
     i = 1
 
     for task in tasks:
         task_name = task[1]
         task_deadline = task[2]
-        result += str(i) + ". " + "\"" + task_name + "\"" + ", due by: " + task_deadline + "\n"
+        result += str(i) + ". " + task_name + " - " + task_deadline + "\n"
         i += 1
 
     return result
@@ -151,37 +162,96 @@ def add_task_deadline(update: Update, context: CallbackContext) -> int:
 
 
 def edit_tasks(update: Update, context: CallbackContext) -> int:
-    tasks_to_be_printed = get_tasks_in_string(update)
-    # keyboard = build_keyboard(tasks)
-    # TODO add keyboard of tasks here
-    update.message.reply_text("Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to edit?")
-    return CHOOSE_EDIT_FIELDS
+
+    tasks = get_tasks_name_deadline(update)
+    my_tasks = []
+    for task in tasks:
+        my_tasks.append(task[0] + " - " + task[1])
+    keyboard = [[task] for task in my_tasks]
+    reply_markup_edit = {"keyboard": keyboard, "one_time_keyboard": True}
+    update.message.reply_text("Which task to edit?", reply_markup=reply_markup_edit)
+
+    return CHOOSE_EDIT_TASK
+
+
+task_to_be_edited = ""
+
+
+def edit_task_confirmation(update: Update, context: CallbackContext) -> int:
+    full_task = update.message.text
+    is_inside = False
+    for task in get_tasks_name_deadline(update):
+        if full_task.split(' - ')[0] == task[0]:
+            is_inside = True
+            global task_to_be_edited
+            task_to_be_edited = full_task
+            break
+
+    if not is_inside:
+        update.message.reply_text("Task does not exist!")
+        return abort_editing(update, context)
+    else:
+        return choose_edit_fields(update, context)
 
 
 def choose_edit_fields(update: Update, context: CallbackContext) -> int:
     update.message.reply_text("What would you like to edit? The task name or the task deadline?",
-                              task_field_menu_keyboard_markup)
+                              reply_markup=task_field_menu_keyboard_markup)
     return CHOOSE_EDIT_FIELDS
 
 
-def edit_task_name(update: Update, context: CallbackContext) -> int:
+def ask_edited_name(update: Update, context: CallbackContext) -> int:
     update.message.reply_text("What is the edited task name?", reply_markup=ReplyKeyboardRemove())
-    edited_name = update.message.text
-    # TODO update edited name in db
+    return EDIT_TASK_NAME
+
+
+def ask_edited_deadline(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("What is the edited task deadline?", reply_markup=ReplyKeyboardRemove())
+    return EDIT_TASK_DEADLINE
+
+
+def edit_task_name(update: Update, context: CallbackContext) -> int:
+    edited_task_name = update.message.text
+    checker = task_to_be_edited.split(' - ')[0]
+
+    connection = get_connection()
+    cursor = connection.cursor()
+    sql_update_query = """Update tasks set name = %s where name = %s"""
+    cursor.execute(sql_update_query, (edited_task_name, checker),)
+    connection.commit()
+    count = cursor.rowcount
+    print(count, "Record Updated successfully ")
+
+    update.message.reply_text("Okay, edited your task name.", reply_markup=continue_or_not_keyboard_markup)
     return CONTINUE_OR_NOT
 
 
 def edit_task_deadline(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("What is the edited task deadline?", reply_markup=ReplyKeyboardRemove())
-    edited_deadline = update.message.text
-    # TODO update edited deadline in db
+    edited_task_deadline = update.message.text
+    checker = task_to_be_edited.split(' - ')[1]
+
+    connection = get_connection()
+    cursor = connection.cursor()
+    sql_update_query = """Update tasks set deadline = %s where deadline = %s"""
+    cursor.execute(sql_update_query, (edited_task_deadline, checker), )
+    connection.commit()
+    count = cursor.rowcount
+    print(count, "Record Updated successfully ")
+
+    update.message.reply_text("Okay, edited your task deadline.", reply_markup=continue_or_not_keyboard_markup)
+    return CONTINUE_OR_NOT
+
+
+def abort_editing(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("Editing aborted.", reply_markup=continue_or_not_keyboard_markup)
     return CONTINUE_OR_NOT
 
 
 def delete_tasks(update: Update, context: CallbackContext) -> int:
     tasks = get_tasks_name(update)
-    keyboard = build_keyboard(tasks)
-    update.message.reply_text("Which task to delete?", reply_markup=keyboard)
+    keyboard = [[str(task)[2:-3]] for task in tasks]
+    reply_markup_delete = {"keyboard": keyboard, "one_time_keyboard": True}
+    update.message.reply_text("Which task to delete?", reply_markup=reply_markup_delete)
     return CHOOSE_DELETE_TASK
 
 
@@ -228,28 +298,12 @@ def abort_deletion(update: Update, context: CallbackContext) -> int:
     return CONTINUE_OR_NOT
 
 
-def mark_done_tasks(update: Update, context: CallbackContext) -> int:
-    tasks_to_be_printed = get_tasks_in_string(update)
-    # keyboard = build_keyboard(tasks)
-    # TODO add keyboard of tasks here
-    update.message.reply_text(
-        "Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to mark done?")
-    return MARK_TASK_DONE
-
-
-def confirm_done(update: Update, context: CallbackContext) -> int:
-    # TODO get the task
-    update.message.reply_text("This task has been marked done!")
-    return CONTINUE_OR_NOT
-
-
 def help_message(update: Update, context: CallbackContext) -> int:
     update.message.reply_text("Here are a list of commands you can use:\n"
                               "/list - View your tasks\n"
                               "/add - Add your tasks\n"
                               "/edit - Edit your tasks\n"
                               "/delete - Delete your tasks\n"
-                              "/done - Mark done your tasks\n"
                               "/exit - Say bye bye to me!")
     return CHOICES_MENU
 
@@ -266,13 +320,6 @@ def cancel(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
-def build_keyboard(items):
-
-    keyboard = [[str(item)[2:-3]] for item in items]
-    reply_markup = {"keyboard": keyboard, "one_time_keyboard": True}
-    return reply_markup
-
-
 def main() -> None:
     updater = Updater("1408983446:AAEjq7jNHRBGQ3CM4cf5pO6hWvPQMw_NRlY", use_context=True)
     dispatcher = updater.dispatcher
@@ -285,7 +332,6 @@ def main() -> None:
                 CommandHandler('add', add_tasks),
                 CommandHandler('edit', edit_tasks),
                 CommandHandler('delete', delete_tasks),
-                CommandHandler('done', mark_done_tasks),
                 CommandHandler('exit', cancel)
             ],
             ADD_TASK_NAME: [
@@ -294,19 +340,25 @@ def main() -> None:
             ADD_TASK_DEADLINE: [
                 MessageHandler(Filters.text, add_task_deadline)
             ],
+            CHOOSE_EDIT_TASK: [
+                MessageHandler(Filters.text, edit_task_confirmation)
+            ],
             CHOOSE_EDIT_FIELDS: [
-                CommandHandler('name', edit_task_name),
-                CommandHandler('deadline', edit_task_deadline)
+                CommandHandler('name', ask_edited_name),
+                CommandHandler('deadline', ask_edited_deadline)
+            ],
+            EDIT_TASK_NAME: [
+                MessageHandler(Filters.text, edit_task_name)
+            ],
+            EDIT_TASK_DEADLINE: [
+                MessageHandler(Filters.text, edit_task_deadline)
             ],
             CHOOSE_DELETE_TASK: [
-                MessageHandler(Filters.text, delete_task_confirmation),
+                MessageHandler(Filters.text, delete_task_confirmation)
             ],
             CONFIRM_DELETION: [
                 CommandHandler('yes', confirm_deletion),
                 CommandHandler('no', abort_deletion)
-            ],
-            MARK_TASK_DONE: [
-
             ],
             CONTINUE_OR_NOT: [
                 CommandHandler('continue', continue_using),
