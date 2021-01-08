@@ -61,18 +61,29 @@ def start(update: Update, context: CallbackContext) -> int:
 
 
 def list_tasks(update: Update, context: CallbackContext) -> int:
-    tasks_to_be_printed = get_tasks_in_string()
-    update.message.reply_text("Here are the list of tasks:\n" + tasks_to_be_printed)
+    tasks_to_be_printed = get_tasks_in_string(update)
+    update.message.reply_text("Here are your tasks:\n" + tasks_to_be_printed)
     return CHOICES_MENU
 
 
-def get_tasks_in_string() -> str:
-    # TODO getting tasks from db
-    # tasks =
-    tasks_to_be_printed = ""
-    # for task in tasks:
-    #     tasks_to_be_printed += task + "\n"
-    return tasks_to_be_printed
+def get_tasks_in_string(update: Update) -> str:
+    connection = get_connection()
+    cursor = connection.cursor()
+    postgres_select_query = """select * from tasks where userid = %s"""
+
+    user_id = str(update.message.from_user.id)
+    cursor.execute(postgres_select_query, (user_id,))
+    tasks = cursor.fetchall()
+
+    result = ""
+    i = 1
+    for task in tasks:
+        task_name = task[1]
+        task_deadline = task[2]
+        result += str(i) + ". " + "\"" + task_name + "\"" + ", due by: " + task_deadline + "\n"
+        i += 1
+
+    return result
 
 
 def add_tasks(update: Update, context: CallbackContext) -> int:
@@ -125,7 +136,7 @@ def add_task_deadline(update: Update, context: CallbackContext) -> int:
 
 
 def edit_tasks(update: Update, context: CallbackContext) -> int:
-    tasks_to_be_printed = get_tasks_in_string()
+    tasks_to_be_printed = get_tasks_in_string(update)
     # keyboard = build_keyboard(tasks)
     # TODO add keyboard of tasks here
     update.message.reply_text("Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to edit?")
@@ -153,7 +164,7 @@ def edit_task_deadline(update: Update, context: CallbackContext) -> int:
 
 
 def delete_tasks(update: Update, context: CallbackContext) -> int:
-    tasks_to_be_printed = get_tasks_in_string()
+    tasks_to_be_printed = get_tasks_in_string(update)
     # keyboard = build_keyboard(tasks)
     # TODO add keyboard of tasks here
     update.message.reply_text(
@@ -180,7 +191,7 @@ def abort_deletion(update: Update, context: CallbackContext) -> int:
 
 
 def mark_done_tasks(update: Update, context: CallbackContext) -> int:
-    tasks_to_be_printed = get_tasks_in_string()
+    tasks_to_be_printed = get_tasks_in_string(update)
     # keyboard = build_keyboard(tasks)
     # TODO add keyboard of tasks here
     update.message.reply_text(
