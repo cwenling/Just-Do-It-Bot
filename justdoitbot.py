@@ -18,17 +18,21 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT, CHOOSE_EDIT_FIELDS = range(5)
+CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT, CHOOSE_EDIT_FIELDS, \
+    CHOOSE_DELETE_TASK, CONFIRM_DELETION = range(7)
 
 choices_menu_keyboard = [['/list tasks', '/add tasks'],
                          ['/edit tasks', '/delete tasks'],
                          ['/done tasks', '/exit']]
 choices_menu_keyboard_markup = ReplyKeyboardMarkup(choices_menu_keyboard)
 
-task_field_menu_keyboard = ['task /name', 'task /deadline']
+task_field_menu_keyboard = [['task /name', 'task /deadline']]
 task_field_menu_keyboard_markup = ReplyKeyboardMarkup(task_field_menu_keyboard)
 
-continue_or_not_keyboard = [['/yes', '/no']]
+confirmation_deletion_keyboard = [['/yes', '/no']]
+confirmation_deletion_keyboard_markup = ReplyKeyboardMarkup(confirmation_deletion_keyboard)
+
+continue_or_not_keyboard = [['/continue', '/end']]
 continue_or_not_keyboard_markup = ReplyKeyboardMarkup(continue_or_not_keyboard)
 
 
@@ -63,7 +67,7 @@ def add_tasks(update: Update, context: CallbackContext) -> int:
 def add_task_name(update: Update, context: CallbackContext) -> int:
     task_name = update.message.text
     update.message.reply_text("Noted! Your task name is " + task_name + "\n"
-                              "What about the deadline of the task?")
+                                                                        "What about the deadline of the task?")
     # TODO insert task name into db
 
     return ADD_TASK_DEADLINE
@@ -109,8 +113,28 @@ def edit_task_deadline(update: Update, context: CallbackContext) -> int:
 
 
 def delete_tasks(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("I am deleting tasks now.")
-    return CHOICES_MENU
+    tasks_to_be_printed = get_tasks_in_string()
+    # keyboard = build_keyboard(tasks)
+    # TODO add keyboard of tasks here
+    update.message.reply_text(
+        "Here are the list of tasks:\n" + tasks_to_be_printed + "Which task do you want to delete?")
+    return CHOOSE_DELETE_TASK
+
+
+def delete_task_confirmation(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("Are you sure you want to delete this task?",
+                              reply_markup=confirmation_deletion_keyboard_markup)
+    return CONFIRM_DELETION
+
+
+def confirm_deletion(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("You deleted this task.", reply_markup=continue_or_not_keyboard_markup)
+    return CONTINUE_OR_NOT
+
+
+def abort_deletion(update: Update, context: CallbackContext) -> int:
+    update.message.reply_text("You did not delete this task.", reply_markup=continue_or_not_keyboard_markup)
+    return CONTINUE_OR_NOT
 
 
 def mark_done_tasks(update: Update, context: CallbackContext) -> int:
@@ -159,7 +183,8 @@ def main() -> None:
                 CommandHandler('add', add_tasks),
                 CommandHandler('edit', edit_tasks),
                 CommandHandler('delete', delete_tasks),
-                CommandHandler('done', mark_done_tasks)
+                CommandHandler('done', mark_done_tasks),
+                CommandHandler('exit', cancel)
             ],
             ADD_TASK_NAME: [
                 MessageHandler(Filters.text, add_task_name)
@@ -171,9 +196,16 @@ def main() -> None:
                 CommandHandler('name', edit_task_name),
                 CommandHandler('deadline', edit_task_deadline)
             ],
+            CHOOSE_DELETE_TASK: [
+
+            ],
+            CONFIRM_DELETION: [
+                CommandHandler('yes', confirm_deletion),
+                CommandHandler('no', abort_deletion)
+            ],
             CONTINUE_OR_NOT: [
-                CommandHandler('yes', continue_using),
-                CommandHandler('no', cancel)
+                CommandHandler('continue', continue_using),
+                CommandHandler('end', cancel)
             ]
 
         },
