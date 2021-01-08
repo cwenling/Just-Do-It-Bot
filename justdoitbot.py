@@ -89,6 +89,7 @@ def get_tasks_name(update: Update):
 
     return tasks_names
 
+
 def get_tasks_in_string(update: Update) -> str:
     tasks = get_tasks(update)
     result = ""
@@ -137,8 +138,7 @@ def add_task_deadline(update: Update, context: CallbackContext) -> int:
     cursor.execute(postgres_insert_query, record_to_insert)
 
     connection.commit()
-    count = cursor.rowcount
-    print(count, "Record inserted successfully into mobile table")
+    logger.info("Task was inserted successfully into database")
 
     update.message.reply_text("Do you want to continue using JustDueet bot?",
                               reply_markup=continue_or_not_keyboard_markup)
@@ -179,15 +179,14 @@ def edit_task_deadline(update: Update, context: CallbackContext) -> int:
 
 
 def delete_tasks(update: Update, context: CallbackContext) -> int:
-    tasks_to_be_printed = get_tasks_in_string(update)
     tasks = get_tasks_name(update)
     keyboard = build_keyboard(tasks)
-    # TODO add keyboard of tasks here
-    update.message.reply_text(
-        "Which task to delete?", reply_markup=keyboard)
+    update.message.reply_text("Which task to delete?", reply_markup=keyboard)
     return CHOOSE_DELETE_TASK
 
+
 task_to_be_deleted = None
+
 
 def delete_task_confirmation(update: Update, context: CallbackContext) -> int:
     task_name = update.message.text
@@ -203,7 +202,6 @@ def delete_task_confirmation(update: Update, context: CallbackContext) -> int:
         update.message.reply_text("Task does not exist!")
         return abort_deletion(update, context)
     else:
-        #
         update.message.reply_text("Are you sure you want to delete this task?",
                                   reply_markup=confirmation_deletion_keyboard_markup)
         return CONFIRM_DELETION
@@ -211,8 +209,17 @@ def delete_task_confirmation(update: Update, context: CallbackContext) -> int:
 
 def confirm_deletion(update: Update, context: CallbackContext) -> int:
     # TODO get the task
-    update.message.reply_text("You deleted this task.", reply_markup=continue_or_not_keyboard_markup)
-    return CONTINUE_OR_NOT
+    # Update single record w
+    try:
+        sql_delete_query = """Delete from tasks where NAME = %s"""
+        connection = get_connection()
+        cursor = connection.cursor()
+        cursor.execute(sql_delete_query, (task_to_be_deleted,))
+        connection.commit()
+        update.message.reply_text("You deleted this task.", reply_markup=continue_or_not_keyboard_markup)
+        return CONTINUE_OR_NOT
+    except (Exception, psycopg2.Error) as error:
+        print("Error in Delete operation", error)
 
 
 def abort_deletion(update: Update, context: CallbackContext) -> int:
