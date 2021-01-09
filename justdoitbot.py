@@ -62,7 +62,7 @@ def start(update: Update, context: CallbackContext) -> int:
 
 def list_tasks(update: Update, context: CallbackContext) -> int:
     tasks_to_be_printed = get_tasks_in_string(update)
-    update.message.reply_text("Here are your tasks:\n" + tasks_to_be_printed)
+    update.message.reply_text("Here are your tasks:\n" + tasks_to_be_printed, reply_markup=ReplyKeyboardRemove())
     return CHOICES_MENU
 
 
@@ -117,7 +117,7 @@ def get_tasks_in_string(update: Update) -> str:
 
 
 def add_tasks(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("What is the name of the task?")
+    update.message.reply_text("What is the name of the task?", reply_markup=ReplyKeyboardRemove())
     return ADD_TASK_NAME
 
 
@@ -127,8 +127,6 @@ def add_task_name(update: Update, context: CallbackContext) -> int:
     context.user_data['name'] = task_name
     logger.info("Deadline name:")
     logger.info(context.user_data)
-    # TODO insert task name into db
-
     return ADD_TASK_DEADLINE
 
 
@@ -140,7 +138,8 @@ def add_task_deadline(update: Update, context: CallbackContext) -> int:
     logger.info(context.user_data)
     task = context.user_data['name'] + task_deadline
     update.message.reply_text("Okay! Your task's deadline is " + task_deadline + "\n"
-                              + "This task has been added into your task list: " + task)
+                              + "This task has been added into your task list: " + task,
+                              reply_markup=ReplyKeyboardRemove())
 
     connection = get_connection()
     cursor = connection.cursor()
@@ -279,7 +278,6 @@ def delete_task_confirmation(update: Update, context: CallbackContext) -> int:
 
 
 def confirm_deletion(update: Update, context: CallbackContext) -> int:
-    # TODO get the task
     # Update single record w
     try:
         sql_delete_query = """Delete from tasks where NAME = %s"""
@@ -294,7 +292,6 @@ def confirm_deletion(update: Update, context: CallbackContext) -> int:
 
 
 def abort_deletion(update: Update, context: CallbackContext) -> int:
-    # TODO get the task
     update.message.reply_text("Deletion aborted.", reply_markup=continue_or_not_keyboard_markup)
     return CONTINUE_OR_NOT
 
