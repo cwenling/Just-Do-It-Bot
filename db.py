@@ -10,7 +10,7 @@ try:
 
     cursor = connection.cursor()
 
-    q = """DROP TABLE tasks"""
+    q = """DROP TABLE IF EXISTS tasks"""
     cursor.execute(q)
     connection.commit()
     print("Table dropped successfully in PostgreSQL ")
