@@ -1,6 +1,7 @@
 import logging
 import psycopg2
 import os
+import config
 
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -20,16 +21,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 PORT = int(os.environ.get('PORT', 5000))
-TOKEN = "1408983446:AAEjq7jNHRBGQ3CM4cf5pO6hWvPQMw_NRlY"
+TOKEN = config.telegram_token
 URL = "https://api.telegram.org/bot{}/".format(TOKEN)
 
 
 def get_connection():
     connection = psycopg2.connect(user="nuryqcnukhhtay",
-                                  password="f898e8d7ad3c53f29763b0758498d07923068b506522eb80096577ca0f53d2c4",
-                                  host="ec2-52-44-166-58.compute-1.amazonaws.com",
+                                  password=config.postgres_password,
+                                  host=config.postgres_host,
                                   port="5432",
-                                  database="d3t932c9q69007")
+                                  database=config.postgres_database)
     return connection
 
 

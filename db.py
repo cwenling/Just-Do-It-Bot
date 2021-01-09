@@ -1,12 +1,14 @@
 import psycopg2
+import config
+
 from psycopg2 import Error
 
 try:
     connection = psycopg2.connect(user="nuryqcnukhhtay",
-                                  password="f898e8d7ad3c53f29763b0758498d07923068b506522eb80096577ca0f53d2c4",
-                                  host="ec2-52-44-166-58.compute-1.amazonaws.com",
+                                  password=config.postgres_password,
+                                  host=config.postgres_host,
                                   port="5432",
-                                  database="d3t932c9q69007")
+                                  database=config.postgres_database)
 
     cursor = connection.cursor()
 
