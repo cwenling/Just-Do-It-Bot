@@ -2,11 +2,11 @@ import psycopg2
 from psycopg2 import Error
 
 try:
-    connection = psycopg2.connect(user="postgres2",
-                                  password="botbotbot",
-                                  host="127.0.0.1",
+    connection = psycopg2.connect(user="nuryqcnukhhtay",
+                                  password="f898e8d7ad3c53f29763b0758498d07923068b506522eb80096577ca0f53d2c4",
+                                  host="ec2-52-44-166-58.compute-1.amazonaws.com",
                                   port="5432",
-                                  database="botdb")
+                                  database="d3t932c9q69007")
 
     cursor = connection.cursor()
 

@@ -19,13 +19,18 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+PORT = int(os.environ.get('PORT', 5000))
+TOKEN = "1408983446:AAEjq7jNHRBGQ3CM4cf5pO6hWvPQMw_NRlY"
+URL = "https://api.telegram.org/bot{}/".format(TOKEN)
+
 
 def get_connection():
-    DATABASE_URL = os.environ['postgres://nuryqcnukhhtay:f898e8d7ad3c53f29763b0758498d07923068b506522eb80096577ca0f53d2c4@ec2-52-44-166-58.compute-1.amazonaws.com:5432/d3t932c9q69007']
-
-    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-
-    return conn
+    connection = psycopg2.connect(user="nuryqcnukhhtay",
+                                  password="f898e8d7ad3c53f29763b0758498d07923068b506522eb80096577ca0f53d2c4",
+                                  host="ec2-52-44-166-58.compute-1.amazonaws.com",
+                                  port="5432",
+                                  database="d3t932c9q69007")
+    return connection
 
 
 CHOICES_MENU, ADD_TASK_NAME, ADD_TASK_DEADLINE, CONTINUE_OR_NOT, CHOOSE_EDIT_FIELDS, \
@@ -371,6 +376,10 @@ def main() -> None:
 
     dispatcher.add_handler(conv_handler)
     updater.start_polling()
+    updater.start_webhook(listen="0.0.0.0",
+                          port=int(PORT),
+                          url_path=TOKEN)
+    updater.bot.setWebhook('https://just-do-it-bot.herokuapp.com/' + TOKEN)
     updater.idle()
 
 
