@@ -56,11 +56,7 @@ def start(update: Update, context: CallbackContext) -> int:
                               "commands we offer! Alternatively, you can use /help!",
                               reply_markup=choices_menu_keyboard_markup)
     context.user_data['userid'] = str(update.message.from_user.id)
-    # Fetch result
-    connection = get_connection()
-    cursor = connection.cursor()
-    cursor.execute("SELECT * from tasks")
-    print("Result ", cursor.fetchall())
+
     return CHOICES_MENU
 
 
