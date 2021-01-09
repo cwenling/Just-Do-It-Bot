@@ -62,7 +62,10 @@ def start(update: Update, context: CallbackContext) -> int:
 
 def list_tasks(update: Update, context: CallbackContext) -> int:
     tasks_to_be_printed = get_tasks_in_string(update)
-    update.message.reply_text("Here are your tasks:\n" + tasks_to_be_printed, reply_markup=ReplyKeyboardRemove())
+    if not tasks_to_be_printed:
+        update.message.reply_text("Yay! You have no tasks due!")
+    else:
+        update.message.reply_text("Here are your tasks:\n" + tasks_to_be_printed)
     return CHOICES_MENU
 
 
@@ -136,7 +139,7 @@ def add_task_deadline(update: Update, context: CallbackContext) -> int:
     # TODO get task name from db
     logger.info("Task:")
     logger.info(context.user_data)
-    task = context.user_data['name'] + task_deadline
+    task = context.user_data['name'] + " - " + task_deadline
     update.message.reply_text("Okay! Your task's deadline is " + task_deadline + "\n"
                               + "This task has been added into your task list: " + task,
                               reply_markup=ReplyKeyboardRemove())
@@ -307,14 +310,14 @@ def help_message(update: Update, context: CallbackContext) -> int:
 
 
 def continue_using(update: Update, context: CallbackContext) -> int:
-    update.message.reply_text("You are going to continue using this bot.", reply_markup=choices_menu_keyboard_markup)
+    update.message.reply_text("What would you like to do next?", reply_markup=choices_menu_keyboard_markup)
     return CHOICES_MENU
 
 
 def cancel(update: Update, context: CallbackContext) -> int:
     user_data = context.user_data
     user_data.clear()
-    update.message.reply_text("Thanks for using our bot! See you next time!", reply_markup=ReplyKeyboardRemove())
+    update.message.reply_text("Thanks for using JustDueet bot! See you next time!", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 
